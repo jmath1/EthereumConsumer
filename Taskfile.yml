@@ -7,3 +7,12 @@ tasks:
   data_apply:
     cmds:
       - terraform -chdir="_infrastructure/stacks/terraform/data" apply
+  docker_build:
+    cmds:
+      - docker build -t eth-consumer -f _infrastructure/stacks/docker/Dockerfile .
+  docker_run:
+    cmds:
+      - docker run -d --env-file .env eth-consumer
+  docker_logs:
+    cmds:
+      - docker logs -f $(docker ps | grep consumer | awk '{print $1}')
