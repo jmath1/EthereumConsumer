@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  data_init:
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/data" init
+  data_apply:
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/data" apply
