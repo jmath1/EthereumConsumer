@@ -1,25 +1,50 @@
 version: '3'
 
 tasks:
-  data_stack_init:
+
+  data_stack_deploy:
+    desc: Deploy the data stack. This requires the persistence stack to be deployed first unless you are using an Ethereum node that has already been created.
     cmds:
       - terraform -chdir="_infrastructure/stacks/terraform/data" init
-  data_stack_apply:
-    cmds:
       - terraform -chdir="_infrastructure/stacks/terraform/data" apply
-  create_ecr:
-      - terraform -chdir="_infrastructure/stacks/terraform/docker" init
-      - terraform -chdir="_infrastructure/stacks/terraform/docker" apply
+
+  service_stack_deploy:
+    desc: Deploy the service stack. This requires the persistence and the docker stacks to be deployed first
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/service" init
+      - terraform -chdir="_infrastructure/stacks/terraform/service" apply -var-file=../../../_env/staging/us-west-2/service.tfvars
+  persistence_stack_deploy:
+    desc: Deploy the persistence stack. 
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/persistence" init
+      - terraform -chdir="_infrastructure/stacks/terraform/persistence" apply -var-file=../../../_env/staging/us-west-2/persistence.tfvars
+
+  create_ecr_state_bucket:
+    desc: Create a state bucket for the docker stack. Make sure the .env.template file is filled out first
+    cmds:
+      - aws s3api create-bucket --bucket $TF_VAR_ECR_STATE_BUCKET --region us-west-2 --create-bucket-configuration LocationConstraint=us-west-2
+  docker_stack_deploy:
+    desc: Deploy the docker stack. This stack uses a remote state so you need to create the state bucket first using `create_ecr_state_bucket`
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/docker" init -backend-config="bucket=$TF_VAR_ECR_STATE_BUCKET" -backend-config="key=ecr.tfstate"
+      - terraform -chdir="_infrastructure/stacks/terraform/docker" apply -var-file=../../../_env/staging/us-west-2/docker.tfvars
+
+
   docker_build:
+    desc: Build the docker image locally
     cmds:
       - docker build -t eth-consumer -f _infrastructure/stacks/docker/Dockerfile .
   docker_run:
+    desc: Run the docker image locally. Copy docker.env.template to a file called docker.env and fill it out before running this.
     cmds:
-      - docker run -d --env-file .env eth-consumer
+      - docker run -d --env-file docker.env eth-consumer
   docker_logs:
+    desc: View the docker logs for the local consumer container
     cmds:
       - docker logs -f $(docker ps | grep consumer | awk '{print $1}')
   docker_push:
+    desc: Build and push the docker image to the ECR repo. Make sure the docker stack is deloyed before using this.
+    cmds:
       - aws ecr get-login-password | docker login --username AWS --password-stdin $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri)
       - task docker_build
       - docker tag eth-consumer:latest $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri):latest
