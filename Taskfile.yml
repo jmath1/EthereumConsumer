@@ -1,12 +1,15 @@
 version: '3'
 
 tasks:
-  data_init:
+  data_stack_init:
     cmds:
       - terraform -chdir="_infrastructure/stacks/terraform/data" init
-  data_apply:
+  data_stack_apply:
     cmds:
       - terraform -chdir="_infrastructure/stacks/terraform/data" apply
+  create_ecr:
+      - terraform -chdir="_infrastructure/stacks/terraform/docker" init
+      - terraform -chdir="_infrastructure/stacks/terraform/docker" apply
   docker_build:
     cmds:
       - docker build -t eth-consumer -f _infrastructure/stacks/docker/Dockerfile .
@@ -16,3 +19,8 @@ tasks:
   docker_logs:
     cmds:
       - docker logs -f $(docker ps | grep consumer | awk '{print $1}')
+  docker_push:
+      - aws ecr get-login-password | docker login --username AWS --password-stdin $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri)
+      - task docker_build
+      - docker tag eth-consumer:latest $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri):latest
+      - docker push $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri):latest
