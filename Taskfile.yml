@@ -42,3 +42,8 @@ tasks:
       - task docker_build
       - docker tag eth-consumer:latest $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri):latest
       - docker push $(terraform -chdir="_infrastructure/stacks/terraform/docker" output -raw ecr_uri):latest
+
+  node_ssh:
+    desc: SSH into the Ethereum Node created in the data stack
+    cmds:
+      - ssh ec2-user@$(terraform -chdir="_infrastructure/stacks/terraform/data" output -raw node_ip)

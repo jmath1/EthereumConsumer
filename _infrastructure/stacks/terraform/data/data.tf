@@ -4,6 +4,10 @@ data "aws_availability_zones" "current" {
   state = "available"
 }
 
+data "http" "my_ip" {
+  url = "https://api.ipify.org?format=json"
+}
+
 data "aws_ami" "latest" {
   most_recent = true
   owners      = ["amazon"]
