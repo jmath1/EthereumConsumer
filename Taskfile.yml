@@ -1,34 +1,27 @@
 version: '3'
 
 tasks:
-
-  data_stack_deploy:
-    desc: Deploy the data stack. This requires the persistence stack to be deployed first unless you are using an Ethereum node that has already been created.
-    cmds:
-      - terraform -chdir="_infrastructure/stacks/terraform/data" init
-      - terraform -chdir="_infrastructure/stacks/terraform/data" apply
-
-  service_stack_deploy:
-    desc: Deploy the service stack. This requires the persistence and the docker stacks to be deployed first
-    cmds:
-      - terraform -chdir="_infrastructure/stacks/terraform/service" init
-      - terraform -chdir="_infrastructure/stacks/terraform/service" apply -var-file=../../../_env/staging/us-west-2/service.tfvars
-  persistence_stack_deploy:
-    desc: Deploy the persistence stack. 
-    cmds:
-      - terraform -chdir="_infrastructure/stacks/terraform/persistence" init
-      - terraform -chdir="_infrastructure/stacks/terraform/persistence" apply -var-file=../../../_env/staging/us-west-2/persistence.tfvars
-
-  create_ecr_state_bucket:
+  create_state_bucket:
     desc: Create a state bucket for the docker stack. Make sure the .env.template file is filled out first
     cmds:
-      - aws s3api create-bucket --bucket $TF_VAR_ECR_STATE_BUCKET --region us-west-2 --create-bucket-configuration LocationConstraint=us-west-2
-  docker_stack_deploy:
-    desc: Deploy the docker stack. This stack uses a remote state so you need to create the state bucket first using `create_ecr_state_bucket`
+      - aws s3api create-bucket --bucket $TF_VAR_STATE_BUCKET --region $AWS_DEFAULT_REGION
+  
+  deploy:
+    desc: Deploy any stack using a CLI argument after "--" - as in `task deploy -- persistence`
     cmds:
-      - terraform -chdir="_infrastructure/stacks/terraform/docker" init -backend-config="bucket=$TF_VAR_ECR_STATE_BUCKET" -backend-config="key=ecr.tfstate"
-      - terraform -chdir="_infrastructure/stacks/terraform/docker" apply -var-file=../../../_env/staging/us-west-2/docker.tfvars
+      - terraform -chdir="_infrastructure/stacks/terraform/{{.CLI_ARGS}}" init -backend-config="bucket=$TF_VAR_STATE_BUCKET" -backend-config="key={{.CLI_ARGS}}.tfstate" -backend-config="region=$AWS_DEFAULT_REGION"
+      - terraform -chdir="_infrastructure/stacks/terraform/{{.CLI_ARGS}}" apply -var-file=../../../_env/staging/{{.CLI_ARGS}}.tfvars
 
+  destroy:
+    desc: Destroy any stack using a CLI argument after "--" - as in `task deploy -- persistence`
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/{{.CLI_ARGS}}" init -migrate-state -backend-config="bucket=$TF_VAR_STATE_BUCKET" -backend-config="key={{.CLI_ARGS}}.tfstate" -backend-config="region=$AWS_DEFAULT_REGION"
+      - terraform -chdir="_infrastructure/stacks/terraform/{{.CLI_ARGS}}" destroy -var-file=../../../_env/staging/{{.CLI_ARGS}}.tfvars
+
+  console:
+    desc: Use the console for any stack by using a CLI argument after "--" - as in `task console -- persistence`
+    cmds:
+      - terraform -chdir="_infrastructure/stacks/terraform/{{.CLI_ARGS}}" console -var-file=../../../_env/staging/{{.CLI_ARGS}}.tfvars
 
   docker_build:
     desc: Build the docker image locally

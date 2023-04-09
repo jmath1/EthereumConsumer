@@ -14,5 +14,3 @@ I made a Taskfile for this project to make things simple. Run task help to get d
 - [x] Create Python script to consume Ethereum data
 - [x] Create a Docker implementation for the consumer script
 - [ ] Create a Fargate implementation for the new Docker container using Terraform
-
-Needs export TF_VAR_ECR_STATE_BUCKET=eth-consumer-docker-stack-state
